@@ -1,5 +1,6 @@
 import requests
 from datetime import datetime, date
+import webbrowser
 
 def fetch_rightmove_properties(base_url, min_available_date):
     headers = {
@@ -72,11 +73,18 @@ def main():
     base_url_template = (
         "https://www.rightmove.co.uk/api/property-search/listing/search"
         "?locationIdentifier=USERDEFINEDAREA%5E%7B%22id%22%3A6430801%7D"
-        "&sortType=6&savedSearchId=49957794"
-        "&minBedrooms=2&radius=0&maxDaysSinceAdded=7"
-        "&includeLetAgreed=false&letType=longTerm"
-        "&furnishTypes=unfurnished&index=0"
-        "&channel=RENT&transactionType=LETTING"
+        "&channel=RENT"
+        "&dontShow=houseShare%2Cretirement%2Cstudent"
+        "&furnishTypes=partFurnished%2Cunfurnished"
+        "&includeLetAgreed=false"
+        "&index=0"
+        "&letType=longTerm"
+        "&maxDaysSinceAdded=1"
+        "&minBedrooms=2"
+        "&radius=0"
+        "&savedSearchId=49957794"
+        "&sortType=6"
+        "&transactionType=LETTING"
     )
 
     # Prompt for maximum price with a default value of £1900
@@ -119,9 +127,12 @@ def main():
     # Print out details of filtered properties
     if filtered_properties:
         print(f"\nProperties with a maximum price of £{max_price} available on or after {min_date_input}:")
+        property_urls = []
         for prop in filtered_properties:
             # Construct direct URL to the property
             property_url = f"https://www.rightmove.co.uk/properties/{prop.get('id')}"
+            property_urls.append(property_url)
+
             let_available_date = prop.get('letAvailableDate', '')
             date_only = let_available_date.split('T')[0] if 'T' in let_available_date else let_available_date
 
@@ -132,11 +143,16 @@ def main():
             print(f"Added/Reduced: {prop.get('addedOrReduced')}")
             print(f"Direct URL: {property_url}")
             print("---")
-        
+
         print(f"Total properties found: {len(filtered_properties)}")
+
+        # Prompt user to open all links in the browser
+        open_in_browser = input("Would you like to open all property links in the browser? (yes/no): ").strip().lower()
+        if open_in_browser in ['yes', 'y']:
+            for url in property_urls:
+                webbrowser.open_new_tab(url)
     else:
         print(f"No properties found with a maximum price of £{max_price} available on or after {min_date_input}")
-
 
 if __name__ == "__main__":
     main()
