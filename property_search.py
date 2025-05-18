@@ -1,6 +1,7 @@
 import requests
 from datetime import datetime, date
 import webbrowser
+import webbrowser
 
 def fetch_rightmove_properties(base_url, min_available_date):
     headers = {
@@ -73,12 +74,18 @@ def main():
     base_url_template = (
         "https://www.rightmove.co.uk/api/property-search/listing/search"
         "?locationIdentifier=USERDEFINEDAREA%5E%7B%22id%22%3A6430801%7D"
-        "&sortType=6&savedSearchId=49957794"
-        "&minBedrooms=2&radius=0&maxDaysSinceAdded=1"
-        "&includeLetAgreed=false&letType=longTerm"
+        "&channel=RENT"
         "&dontShow=houseShare%2Cretirement%2Cstudent"
-        "&furnishTypes=partFurnished&unfurnished&index=0"
-        "&channel=RENT&transactionType=LETTING"
+        "&furnishTypes=partFurnished%2Cunfurnished"
+        "&includeLetAgreed=false"
+        "&index=0"
+        "&letType=longTerm"
+        "&maxDaysSinceAdded=1"
+        "&minBedrooms=2"
+        "&radius=0"
+        "&savedSearchId=49957794"
+        "&sortType=6"
+        "&transactionType=LETTING"
     )
 
     # Prompt for maximum price with a default value of £1900
