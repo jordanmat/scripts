@@ -74,9 +74,10 @@ def main():
         "https://www.rightmove.co.uk/api/property-search/listing/search"
         "?locationIdentifier=USERDEFINEDAREA%5E%7B%22id%22%3A6430801%7D"
         "&sortType=6&savedSearchId=49957794"
-        "&minBedrooms=2&radius=0&maxDaysSinceAdded=7"
+        "&minBedrooms=2&radius=0&maxDaysSinceAdded=1"
         "&includeLetAgreed=false&letType=longTerm"
-        "&furnishTypes=furnished&unfurnished&index=0"
+        "&dontShow=houseShare%2Cretirement%2Cstudent"
+        "&furnishTypes=partFurnished&unfurnished&index=0"
         "&channel=RENT&transactionType=LETTING"
     )
 
