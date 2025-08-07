@@ -1,0 +1,107 @@
+#!/usr/bin/env bash
+
+# Script to calcul    # Check HTTP status     # Extract the PVC usage percentage
+    pvc_usage=$(echo "$raw_response" | jq -r '.data.result[0].value[1]' 2>/dev/null)
+
+    if [[ -z "$pvc_usage" || "$pvc_usage" == "null" ]]; then
+        echo "Warning: No PVC usage data available for ${ENV_NAME}"
+        echo "Response data: $(echo "$raw_response" | jq '.data.result | length')"
+        # Save full response for debugging if there's any data
+        if [[ $(echo "$raw_response" | jq '.data.result | length') -gt 0 ]]; then
+            echo "Data structure: $(echo "$raw_response" | jq '.data.result')"
+        fi
+        continue
+    }  if [[ "$http_code" -ne 200 ]]; then
+        echo "Warning: Failed to get data from ${ENV_NAME} (HTTP ${http_code})"
+        echo "URL: ${PROMETHEUS_URL}/api/v1/query?query=${ENCODED_QUERY}"
+        continue
+    fi
+
+    # Validate if the response is a valid JSON
+    if ! echo "$raw_response" | jq empty > /dev/null 2>&1; then
+        echo "Warning: Invalid JSON response from ${ENV_NAME}"
+        echo "Response: $raw_response"
+        continue
+    }centage of Prometheus PVC used across all clusters
+# Created: July 1, 2025
+
+# Create a temporary file to store results
+tmp_file=$(mktemp)
+output_file="prometheus_pvc_usage.tsv"
+
+echo "Gathering Prometheus PVC usage across clusters..."
+
+# Iterate over all flux directories containing 'kustomization-postbuild-variables/env.yaml'
+cd "$HOME/git" || exit 1
+for env_file in $(find flux-* -type f -path "*/kustomization-postbuild-variables/env.yaml" 2>/dev/null); do
+    # Extract the environment directory
+    env_dir=$(dirname $(dirname "$env_file"))
+
+    # Extract the ENV_NAME and ENV_DOMAIN from the env.yaml file
+    ENV_NAME=$(grep '^  ENV_NAME:' "$env_file" | awk -F': ' '{gsub(/"/, "", $2); print $2}')
+    ENV_DOMAIN=$(grep '^  ENV_DOMAIN:' "$env_file" | awk -F': ' '{gsub(/"/, "", $2); print $2}')
+
+    # Validate the extracted ENV_DOMAIN
+    if [[ -z "$ENV_DOMAIN" ]]; then
+        echo "Error: ENV_DOMAIN not found or empty in $env_file"
+        continue
+    fi
+
+    # Construct the Prometheus URL
+    PROMETHEUS_URL="https://prometheus.${ENV_DOMAIN}"
+
+    # Query for Prometheus PVC usage percentage
+    PVC_QUERY="kubelet_volume_stats_used_bytes{persistentvolumeclaim=\"prometheus-prometheus-grafana-kube-pr-prometheus-db-prometheus-prometheus-grafana-kube-pr-prometheus-0\"} / kubelet_volume_stats_capacity_bytes{persistentvolumeclaim=\"prometheus-prometheus-grafana-kube-pr-prometheus-db-prometheus-prometheus-grafana-kube-pr-prometheus-0\"} * 100"
+    
+    # URL encode the query properly
+    ENCODED_QUERY=$(echo "$PVC_QUERY" | jq -sRr @uri)
+    
+    response=$(curl -sk -w "%{http_code}" -o /tmp/curl_response.txt "${PROMETHEUS_URL}/api/v1/query?query=${ENCODED_QUERY}")
+    http_code=$(tail -n1 <<< "$response")
+    raw_response=$(cat /tmp/curl_response.txt)
+
+    # Check HTTP status code
+    if [[ "$http_code" -ne 200 ]]; then
+        echo "Warning: Failed to get data from ${ENV_NAME} (HTTP ${http_code})"
+        continue
+    fi
+
+    # Validate if the response is a valid JSON
+    if ! echo "$raw_response" | jq empty > /dev/null 2>&1; then
+        echo "Warning: Invalid JSON response from ${ENV_NAME}"
+        continue
+    fi
+
+    # Extract the PVC usage percentage
+    pvc_usage=$(echo "$raw_response" | jq -r '.data.result[0].value[1]' 2>/dev/null)
+
+    if [[ -z "$pvc_usage" || "$pvc_usage" == "null" ]]; then
+        echo "Warning: No PVC usage data available for ${ENV_NAME}"
+        continue
+    fi
+
+    # Format the percentage to 2 decimal places
+    pvc_usage_formatted=$(printf "%.2f" "$pvc_usage")
+
+    # Append the environment name and PVC usage percentage to the temporary file
+    echo -e "${ENV_NAME}\t${pvc_usage_formatted}%" >> "$tmp_file"
+    
+    echo "Processed ${ENV_NAME}: ${pvc_usage_formatted}% PVC usage"
+done
+
+# Sort the results alphabetically and save to the output file
+sort "$tmp_file" > "$output_file"
+
+echo -e "\nSummary of Prometheus PVC Usage:"
+echo -e "Cluster\tPVC Usage"
+echo -e "-------\t---------"
+cat "$output_file"
+
+# Find clusters with high PVC usage (>80%)
+echo -e "\nClusters with high PVC usage (>80%):"
+grep -E $'\t8[0-9]\.[0-9]{2}%|\t9[0-9]\.[0-9]{2}%' "$output_file" || echo "None found"
+
+# Clean up the temporary file
+rm "$tmp_file"
+
+echo -e "\nResults saved to $output_file"
